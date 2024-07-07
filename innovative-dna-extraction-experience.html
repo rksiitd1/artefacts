@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Immersive DNA Extraction Experience</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        #canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #fff;
+            font-size: 16px;
+            z-index: 100;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .step-info {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 600px;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="info">Click and drag to rotate. Scroll to zoom. Click on DNA strands for step information.</div>
+    <div id="step-info" class="step-info"></div>
+
+    <script>
+        let scene, camera, renderer, dnaStrands = [];
+        const steps = [
+            "0.5 g soil in Bio-101 Multimix 2 Matrix Tube",
+            "Add CTAB extraction buffer and phenol-chloroform-isoamylalcohol",
+            "Lyse sample in homogeniser",
+            "Separate aqueous phase by centrifugation",
+            "Extract aqueous phase and remove phenol",
+            "Repeat centrifugation",
+            "Precipitate nucleic acids",
+            "Wash pelleted nucleic acid",
+            "Air dry",
+            "Resuspend in RNase free Tris EDTA buffer"
+        ];
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas'), antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
+            // Create DNA strands
+            for (let i = 0; i < steps.length; i++) {
+                createDNAStrand(i);
+            }
+
+            camera.position.z = 15;
+
+            // Add lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            const pointLight = new THREE.PointLight(0xffffff, 1);
+            pointLight.position.set(10, 10, 10);
+            scene.add(pointLight);
+
+            // Add particle system
+            createParticleSystem();
+
+            // Event listeners
+            window.addEventListener('resize', onWindowResize, false);
+            document.addEventListener('mousemove', onMouseMove, false);
+            document.addEventListener('wheel', onMouseWheel, false);
+            document.addEventListener('click', onMouseClick, false);
+
+            animate();
+        }
+
+        function createDNAStrand(index) {
+            const geometry = new THREE.TorusKnotGeometry(1, 0.3, 100, 16);
+            const material = new THREE.MeshPhongMaterial({ color: 0x00ff00, shininess: 100 });
+            const dnaStrand = new THREE.Mesh(geometry, material);
+            dnaStrand.position.set((index - steps.length / 2) * 3, 0, 0);
+            dnaStrand.userData = { step: steps[index], index: index };
+            scene.add(dnaStrand);
+            dnaStrands.push(dnaStrand);
+        }
+
+        function createParticleSystem() {
+            const particlesGeometry = new THREE.BufferGeometry();
+            const particleCount = 1000;
+
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+
+            for (let i = 0; i < particleCount; i++) {
+                positions[i * 3] = (Math.random() - 0.5) * 50;
+                positions[i * 3 + 1] = (Math.random() - 0.5) * 50;
+                positions[i * 3 + 2] = (Math.random() - 0.5) * 50;
+
+                colors[i * 3] = Math.random();
+                colors[i * 3 + 1] = Math.random();
+                colors[i * 3 + 2] = Math.random();
+            }
+
+            particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            particlesGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            const particlesMaterial = new THREE.PointsMaterial({ size: 0.1, vertexColors: true });
+            const particleSystem = new THREE.Points(particlesGeometry, particlesMaterial);
+            scene.add(particleSystem);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            dnaStrands.forEach((strand, index) => {
+                strand.rotation.x += 0.01;
+                strand.rotation.y += 0.01;
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onMouseMove(event) {
+            const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+            const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            gsap.to(scene.rotation, { x: mouseY * 0.3, y: mouseX * 0.3, duration: 0.5 });
+        }
+
+        function onMouseWheel(event) {
+            camera.position.z += event.deltaY * 0.01;
+        }
+
+        function onMouseClick(event) {
+            const mouse = new THREE.Vector2();
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+
+            const intersects = raycaster.intersectObjects(dnaStrands);
+
+            if (intersects.length > 0) {
+                const clickedStrand = intersects[0].object;
+                showStepInfo(clickedStrand.userData.step, clickedStrand.userData.index);
+            } else {
+                hideStepInfo();
+            }
+        }
+
+        function showStepInfo(step, index) {
+            const stepInfo = document.getElementById('step-info');
+            stepInfo.innerHTML = `<h3>Step ${index + 1}</h3><p>${step}</p>`;
+            stepInfo.style.opacity = 1;
+        }
+
+        function hideStepInfo() {
+            const stepInfo = document.getElementById('step-info');
+            stepInfo.style.opacity = 0;
+        }
+
+        init();
+    </script>
+</body>
+</html>
